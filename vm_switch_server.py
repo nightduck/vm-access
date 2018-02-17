@@ -3,6 +3,8 @@ import socket
 import socketserver
 import subprocess
 import os
+from time import sleep
+import threading
 
 # This file sets up a TCP server listening on port 52831. Anytime it receives a command to switch,
 # it'll toggle the keyboard and mouse (and any other devices specified during installation)
@@ -10,14 +12,12 @@ import os
 
 
 def change_usb_state(cmd, vm, device):
-    global state
-
     # Cmd can be "detach" if sent from host, "attach" if sent from guest, or "toggle" as a generic command
     if cmd == state: return
     if cmd == "toggle":
         cmd = "attach" if state == "detach" else "detach"
 
-    # Make a tmp xml file using the device (eg 48d6:fe8b)
+    # subprocess.call requires an xml file, so make a tmp xml file using the device numbers (eg 48d6:fe8b)
     xml_path = '/tmp/device-{}.xml'.format(device)
     if not os.path.exists(xml_path):
         with open(xml_path, 'w+') as fp:
@@ -31,34 +31,49 @@ def change_usb_state(cmd, vm, device):
             """.format(*device.split(':')))
 
     # Call virsh to attach or remove the device, and update state
-    success = subprocess.call(['virsh', cmd+'-device', vm, xml_path]) == 0
-
-    # If successful, update the state
-    if success: state = cmd
-    return success
+    return subprocess.call(['virsh', cmd+'-device', vm, xml_path]) == 0
 
 
 # Note: This handler only supports toggling 2 state host<>guest with a single VM. If there's every a need
 # to support multiple VMs, this will have to be modified
 class CmdHandler(socketserver.BaseRequestHandler):
     def handle(self):
+        global state
         cmd = self.request.recv(1024).strip().decode('utf-8')
         print("{} said: {}".format(self.client_address[0], cmd))
         if cmd in ["detach", "attach", "toggle"]:
             print("  command valid")
+            success = True
             for dev in devices:
                 print("{}ing {}".format(cmd, dev))
                 if change_usb_state(cmd, vms[0], dev):
                     print("    Success")
                 else:
                     print("    Failed")
+                    success = False
+
+            if success:
+                # If cmd was toggle, change the state to the opposite state, else just set it to the cmd that was ran
+                state = ("detach" if state == "attach" else "attach") if cmd == "toggle" else cmd
+            else:
+                print("Error. Returning peripherals to host in 5 seconds...")
+                sleep(5)
+                for dev in devices:
+                    print("detaching {}".format(dev))
+                    change_usb_state("detach", vms[0], dev)
 
 
-HOST, PORT = "localhost", 57831
+def poll():
+    while True:
+        print("state={}".format(state))
+        sleep(3)
+
+HOST, PORT = "0.0.0.0", 57831
 state = 'detach'                        # The last command executed (ie detach if currently on host, attach if on guest)
 devices = ("046d:c332", "1b1c:1b33")    # List of USB devices to toggle. Run lsusb to find the IDs of yours
 vms = ("win10",)                        # NOTE: This program only uses the first item in this list
 
+threading.Thread(target=poll).start()
+
 server = socketserver.TCPServer((HOST, PORT), CmdHandler)
 server.serve_forever()
-
