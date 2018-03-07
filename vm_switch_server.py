@@ -39,7 +39,8 @@ def change_usb_state(cmd, vm, device):
 class CmdHandler(socketserver.BaseRequestHandler):
     def handle(self):
         global state
-        cmd = self.request.recv(1024).strip().decode('utf-8')
+        cmd = self.request[0].strip().decode('utf-8')
+        socket = self.request[1]
         print("{} said: {}".format(self.client_address[0], cmd))
         if cmd in ["detach", "attach", "toggle"]:
             print("  command valid")
@@ -75,5 +76,5 @@ vms = ("win10",)                        # NOTE: This program only uses the first
 
 threading.Thread(target=poll).start()
 
-server = socketserver.TCPServer((HOST, PORT), CmdHandler)
+server = socketserver.UDPServer((HOST, PORT), CmdHandler)
 server.serve_forever()

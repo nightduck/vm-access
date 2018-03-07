@@ -10,7 +10,7 @@ import socket
 HOST = "192.168.1.4"
 PORT = 57831
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.connect((HOST, PORT))
 s.sendall(b'toggle')
 s.close()
