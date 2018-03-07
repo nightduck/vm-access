@@ -1,3 +1,0 @@
-The server is inspired by the code here: https://rokups.github.io/#!pages/kvm-hid.md, but has been edited to use a
-regular TCP port, instead of unix domain sockets. So the Windows guest can access it without having to do the weird ssh
-thing
