@@ -1,3 +1,8 @@
+### NOTICE
+This repository is no longer maintained. It has been superseded by the C++ based [virtkvm project](https://github.com/madstk1/virtkvm). You can find my fork [here](https://github.com/nightduck/virtkvm).
+
+## Installation instructions
+
 To install, first run lsusb and look for the device numbers. Sample output below. The IDs in bold are the ones I want
 to pass.
 
